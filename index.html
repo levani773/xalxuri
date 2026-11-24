@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ka" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Suppress Vite dev HMR WebSocket connection notices in cloud iframe sandbox
+      window.addEventListener('error', function(e) {
+        if (e && (e.filename && e.filename.includes('@vite/client') || (e.message && e.message.includes('WebSocket')))) {
+          e.stopImmediatePropagation();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e && e.reason && (String(e.reason).includes('WebSocket') || String(e.reason.stack || '').includes('@vite/client'))) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }, true);
+    </script>
+    <title>ცოდნის პორტალი - Knowledge Hub</title>
+    <meta name="description" content="ხალხური მედიცინისა და ცოდნის ბაზის პორტალი ავტორიზაციით, კომენტარებით, ლაიქებით, გაზიარებით და ჭკვიანი ძიებით." />
+    <meta property="og:title" content="ცოდნის პორტალი - Knowledge Hub" />
+    <meta property="og:description" content="ხალხური მედიცინისა და ცოდნის ბაზის პორტალი ავტორიზაციით, კომენტარებით, ლაიქებით, გაზიარებით და ჭკვიანი ძიებით." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ცოდნის პორტალი" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ცოდნის პორტალი - Knowledge Hub" />
+    <meta name="twitter:description" content="ხალხური მედიცინისა და ცოდნის ბაზის პორტალი ავტორიზაციით, კომენტარებით, ლაიქებით, გაზიარებით და ჭკვიანი ძიებით." />
+    <meta name="theme-color" content="#020617" />
+    <meta name="robots" content="index, follow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "ცოდნის პორტალი - Knowledge Hub",
+      "applicationCategory": "HealthApplication",
+      "operatingSystem": "All",
+      "description": "ხალხური მედიცინისა და ცოდნის ბაზის პორტალი ავტორიზაციით, კომენტარებით, ლაიქებით, გაზიარებით და ჭკვიანი ძიებით.",
+      "inLanguage": "ka"
+    }
+    </script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

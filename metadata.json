@@ -1,0 +1,6 @@
+{
+  "name": "ცოდნის პორტალი - Knowledge Hub",
+  "description": "ხალხური მედიცინისა და ცოდნის ბაზის პორტალი ავტორიზაციით, კომენტარებით, ლაიქებით, გაზიარებით და ჭკვიანი ძიებით.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
