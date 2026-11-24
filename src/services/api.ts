@@ -1,4 +1,5 @@
 import { Article, Comment, User, UserStats, CategoryInfo } from '../types';
+import { localDb } from './localDb';
 
 const TOKEN_KEY = 'codna_hub_token';
 
@@ -7,6 +8,29 @@ export const tokenStorage = {
   set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
   clear: () => localStorage.removeItem(TOKEN_KEY),
 };
+
+// Auto-detect static hosting environments (Netlify, Vercel, GitHub Pages)
+const isStaticHost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname.endsWith('netlify.app') ||
+    window.location.hostname.endsWith('vercel.app') ||
+    window.location.hostname.endsWith('github.io') ||
+    window.location.hostname.endsWith('pages.dev'));
+
+let forceLocalFallback = isStaticHost;
+
+function isFallbackError(err: any): boolean {
+  if (!err) return false;
+  const msg = String(err.message || err);
+  return (
+    msg.includes('404') ||
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('Load failed') ||
+    msg.includes('ENOTFOUND') ||
+    msg.includes('ECONNREFUSED')
+  );
+}
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = tokenStorage.get();
@@ -43,33 +67,81 @@ export const api = {
     avatar?: string;
     bio?: string;
   }): Promise<{ user: User; token: string }> {
-    const res = await request<{ user: User; token: string }>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    tokenStorage.set(res.token);
-    return res;
+    if (forceLocalFallback) {
+      const res = await localDb.register(payload);
+      tokenStorage.set(res.token);
+      return res;
+    }
+    try {
+      const res = await request<{ user: User; token: string }>('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      tokenStorage.set(res.token);
+      return res;
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        const res = await localDb.register(payload);
+        tokenStorage.set(res.token);
+        return res;
+      }
+      throw err;
+    }
   },
 
   async login(payload: {
     identifier: string;
     password: string;
   }): Promise<{ user: User; token: string }> {
-    const res = await request<{ user: User; token: string }>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    tokenStorage.set(res.token);
-    return res;
+    if (forceLocalFallback) {
+      const res = await localDb.login(payload);
+      tokenStorage.set(res.token);
+      return res;
+    }
+    try {
+      const res = await request<{ user: User; token: string }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      tokenStorage.set(res.token);
+      return res;
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        const res = await localDb.login(payload);
+        tokenStorage.set(res.token);
+        return res;
+      }
+      throw err;
+    }
   },
 
   async getMe(): Promise<{ user: User; stats: UserStats }> {
-    return request<{ user: User; stats: UserStats }>('/api/auth/me');
+    if (forceLocalFallback) {
+      return localDb.getMe();
+    }
+    try {
+      return await request<{ user: User; stats: UserStats }>('/api/auth/me');
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.getMe();
+      }
+      throw err;
+    }
   },
 
   async logout(): Promise<void> {
+    if (forceLocalFallback) {
+      await localDb.logout();
+      tokenStorage.clear();
+      return;
+    }
     try {
       await request('/api/auth/logout', { method: 'POST' });
+    } catch {
+      await localDb.logout();
     } finally {
       tokenStorage.clear();
     }
@@ -83,10 +155,21 @@ export const api = {
     currentPassword?: string;
     newPassword?: string;
   }): Promise<{ user: User; message: string }> {
-    return request<{ user: User; message: string }>('/api/auth/profile', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    if (forceLocalFallback) {
+      return localDb.updateProfile(payload);
+    }
+    try {
+      return await request<{ user: User; message: string }>('/api/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.updateProfile(payload);
+      }
+      throw err;
+    }
   },
 
   // Articles
@@ -95,17 +178,39 @@ export const api = {
     category?: string;
     sort?: string;
   }): Promise<Article[]> {
-    const query = new URLSearchParams();
-    if (params?.search) query.append('search', params.search);
-    if (params?.category) query.append('category', params.category);
-    if (params?.sort) query.append('sort', params.sort);
+    if (forceLocalFallback) {
+      return localDb.getArticles(params);
+    }
+    try {
+      const query = new URLSearchParams();
+      if (params?.search) query.append('search', params.search);
+      if (params?.category) query.append('category', params.category);
+      if (params?.sort) query.append('sort', params.sort);
 
-    const qs = query.toString();
-    return request<Article[]>(`/api/articles${qs ? `?${qs}` : ''}`);
+      const qs = query.toString();
+      return await request<Article[]>(`/api/articles${qs ? `?${qs}` : ''}`);
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.getArticles(params);
+      }
+      throw err;
+    }
   },
 
   async getArticleById(id: string): Promise<Article> {
-    return request<Article>(`/api/articles/${id}`);
+    if (forceLocalFallback) {
+      return localDb.getArticleById(id);
+    }
+    try {
+      return await request<Article>(`/api/articles/${id}`);
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.getArticleById(id);
+      }
+      throw err;
+    }
   },
 
   async createArticle(payload: {
@@ -118,67 +223,169 @@ export const api = {
     sources?: string[];
     source_title?: string;
   }): Promise<Article> {
-    return request<Article>('/api/articles', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    if (forceLocalFallback) {
+      return localDb.createArticle(payload);
+    }
+    try {
+      return await request<Article>('/api/articles', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.createArticle(payload);
+      }
+      throw err;
+    }
   },
 
   async toggleLikeArticle(id: string): Promise<{ isLiked: boolean; likesCount: number; message: string }> {
-    return request<{ isLiked: boolean; likesCount: number; message: string }>(`/api/articles/${id}/like`, {
-      method: 'POST',
-    });
+    if (forceLocalFallback) {
+      return localDb.toggleLikeArticle(id);
+    }
+    try {
+      return await request<{ isLiked: boolean; likesCount: number; message: string }>(`/api/articles/${id}/like`, {
+        method: 'POST',
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.toggleLikeArticle(id);
+      }
+      throw err;
+    }
   },
 
-  async updateArticle(id: string, payload: {
-    title?: string;
-    category?: string;
-    summary?: string;
-    answer?: string;
-    keywords?: string[];
-    questions?: string[];
-    sources?: string[];
-    source_title?: string;
-  }): Promise<Article> {
-    return request<Article>(`/api/articles/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+  async updateArticle(
+    id: string,
+    payload: {
+      title?: string;
+      category?: string;
+      summary?: string;
+      answer?: string;
+      keywords?: string[];
+      questions?: string[];
+      sources?: string[];
+      source_title?: string;
+    }
+  ): Promise<Article> {
+    if (forceLocalFallback) {
+      return localDb.updateArticle(id, payload);
+    }
+    try {
+      return await request<Article>(`/api/articles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.updateArticle(id, payload);
+      }
+      throw err;
+    }
   },
 
   async deleteArticle(id: string): Promise<{ message: string }> {
-    return request<{ message: string }>(`/api/articles/${id}`, {
-      method: 'DELETE',
-    });
+    if (forceLocalFallback) {
+      return localDb.deleteArticle(id);
+    }
+    try {
+      return await request<{ message: string }>(`/api/articles/${id}`, {
+        method: 'DELETE',
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.deleteArticle(id);
+      }
+      throw err;
+    }
   },
 
   // Categories
   async getCategories(): Promise<CategoryInfo[]> {
-    return request<CategoryInfo[]>('/api/categories');
+    if (forceLocalFallback) {
+      return localDb.getCategories();
+    }
+    try {
+      return await request<CategoryInfo[]>('/api/categories');
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.getCategories();
+      }
+      throw err;
+    }
   },
 
   // Comments
   async getComments(articleId: string): Promise<Comment[]> {
-    return request<Comment[]>(`/api/articles/${articleId}/comments`);
+    if (forceLocalFallback) {
+      return localDb.getComments(articleId);
+    }
+    try {
+      return await request<Comment[]>(`/api/articles/${articleId}/comments`);
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.getComments(articleId);
+      }
+      throw err;
+    }
   },
 
   async addComment(articleId: string, content: string): Promise<Comment> {
-    return request<Comment>(`/api/articles/${articleId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    });
+    if (forceLocalFallback) {
+      return localDb.addComment(articleId, content);
+    }
+    try {
+      return await request<Comment>(`/api/articles/${articleId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.addComment(articleId, content);
+      }
+      throw err;
+    }
   },
 
   async deleteComment(commentId: string): Promise<{ message: string }> {
-    return request<{ message: string }>(`/api/comments/${commentId}`, {
-      method: 'DELETE',
-    });
+    if (forceLocalFallback) {
+      return localDb.deleteComment(commentId);
+    }
+    try {
+      return await request<{ message: string }>(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.deleteComment(commentId);
+      }
+      throw err;
+    }
   },
 
   async toggleLikeComment(commentId: string): Promise<{ isLiked: boolean; likesCount: number }> {
-    return request<{ isLiked: boolean; likesCount: number }>(`/api/comments/${commentId}/like`, {
-      method: 'POST',
-    });
+    if (forceLocalFallback) {
+      return localDb.toggleLikeComment(commentId);
+    }
+    try {
+      return await request<{ isLiked: boolean; likesCount: number }>(`/api/comments/${commentId}/like`, {
+        method: 'POST',
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.toggleLikeComment(commentId);
+      }
+      throw err;
+    }
   },
 
   // User Activity
@@ -188,17 +395,54 @@ export const api = {
     comments: Comment[];
     createdArticles: Article[];
   }> {
-    return request<{
-      user: User;
-      likedArticles: Article[];
-      comments: Comment[];
-      createdArticles: Article[];
-    }>(`/api/users/${userId}/activity`);
+    const defaultFallbackUser: User = {
+      id: userId,
+      username: 'user',
+      email: 'user@example.com',
+      fullName: 'მომხმარებელი',
+      role: 'user',
+      avatar: 'nature',
+      bio: '',
+      createdAt: new Date().toISOString(),
+    };
+
+    if (forceLocalFallback) {
+      const act = await localDb.getUserActivity(userId);
+      const userRes = await localDb.getMe().catch(() => ({ user: defaultFallbackUser }));
+      return { user: userRes.user, ...act };
+    }
+    try {
+      return await request<{
+        user: User;
+        likedArticles: Article[];
+        comments: Comment[];
+        createdArticles: Article[];
+      }>(`/api/users/${userId}/activity`);
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        const act = await localDb.getUserActivity(userId);
+        const userRes = await localDb.getMe().catch(() => ({ user: defaultFallbackUser }));
+        return { user: userRes.user, ...act };
+      }
+      throw err;
+    }
   },
 
   // Search
   async searchArticles(q: string): Promise<Article[]> {
-    return request<Article[]>(`/api/search?q=${encodeURIComponent(q)}`);
+    if (forceLocalFallback) {
+      return localDb.getArticles({ search: q });
+    }
+    try {
+      return await request<Article[]>(`/api/search?q=${encodeURIComponent(q)}`);
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.getArticles({ search: q });
+      }
+      throw err;
+    }
   },
 
   // Smart Chatbot
@@ -207,14 +451,43 @@ export const api = {
     score?: number;
     article?: Article;
     message?: string;
+    isWebResult?: boolean;
   }> {
-    return request('/api/bot/ask', {
-      method: 'POST',
-      body: JSON.stringify({ query }),
-    });
+    if (forceLocalFallback) {
+      return localDb.smartBotSearch(query);
+    }
+    try {
+      return await request<{
+        found: boolean;
+        score?: number;
+        article?: Article;
+        message?: string;
+        isWebResult?: boolean;
+      }>('/api/bot/ask', {
+        method: 'POST',
+        body: JSON.stringify({ query }),
+      });
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return localDb.smartBotSearch(query);
+      }
+      throw err;
+    }
   },
 
   async getUnanswered(): Promise<Array<{ id: string; question: string; count: number; firstAsked: string; lastAsked: string }>> {
-    return request('/api/unanswered');
+    if (forceLocalFallback) {
+      return [];
+    }
+    try {
+      return await request('/api/unanswered');
+    } catch (err: any) {
+      if (isFallbackError(err)) {
+        forceLocalFallback = true;
+        return [];
+      }
+      throw err;
+    }
   },
 };
