@@ -322,6 +322,7 @@ export const localDb = {
     questions?: string[];
     sources?: string[];
     source_title?: string;
+    image?: string;
   }): Promise<Article> {
     const db = await this.init();
     const rawUser = localStorage.getItem(CURRENT_USER_KEY);
@@ -337,6 +338,7 @@ export const localDb = {
       questions: payload.questions || [payload.title.trim()],
       sources: payload.sources || [],
       source_title: payload.source_title,
+      image: payload.image,
       author: {
         id: currentUser ? currentUser.id : 'user_guest',
         username: currentUser ? currentUser.username : 'user',

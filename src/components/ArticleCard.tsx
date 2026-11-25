@@ -140,6 +140,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           )}
         </div>
 
+        {/* Article Image if present (250px) */}
+        {(article.image || (article.images && article.images[0])) && (
+          <div className="mb-3 rounded-xl overflow-hidden bg-slate-950 border border-slate-800/80 aspect-[16/9] max-h-40 flex items-center justify-center">
+            <img
+              src={article.image || article.images![0]}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          </div>
+        )}
+
         {/* Article Title */}
         <h3 className="text-base sm:text-lg font-bold text-slate-100 group-hover:text-emerald-300 transition-colors line-clamp-2 mb-2 leading-snug">
           {article.title}

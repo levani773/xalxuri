@@ -26,6 +26,7 @@ export interface Article {
   questions: string[];
   sources?: string[];
   source_title?: string;
+  image?: string;
   images?: string[];
   author: {
     id: string;

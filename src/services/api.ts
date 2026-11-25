@@ -222,6 +222,7 @@ export const api = {
     questions?: string[];
     sources?: string[];
     source_title?: string;
+    image?: string;
   }): Promise<Article> {
     if (forceLocalFallback) {
       return localDb.createArticle(payload);
@@ -268,6 +269,7 @@ export const api = {
       questions?: string[];
       sources?: string[];
       source_title?: string;
+      image?: string;
     }
   ): Promise<Article> {
     if (forceLocalFallback) {

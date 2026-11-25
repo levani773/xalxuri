@@ -258,6 +258,19 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             </div>
           )}
 
+          {/* Article Image (Resized to 250px) */}
+          {(article.image || (article.images && article.images[0])) && (
+            <div className="flex justify-center my-2">
+              <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-xl max-w-[250px] max-h-[250px] flex items-center justify-center p-1">
+                <img
+                  src={article.image || article.images![0]}
+                  alt={article.title}
+                  className="max-w-[250px] max-h-[250px] w-auto h-auto object-contain rounded-xl"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Detailed Content / Answer */}
           <div className="prose prose-invert max-w-none text-sm sm:text-base leading-relaxed text-slate-200 whitespace-pre-line">
             {article.answer}

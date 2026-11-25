@@ -54,6 +54,7 @@ export interface Article {
   questions: string[];
   sources?: string[];
   source_title?: string;
+  image?: string;
   images?: string[];
   author: {
     id: string;
@@ -454,6 +455,12 @@ function getDb(): DatabaseSchema {
 function saveDb(db: DatabaseSchema) {
   dbCache = db;
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+  try {
+    const publicDb = path.resolve(__dirname, 'public/db.json');
+    fs.writeFileSync(publicDb, JSON.stringify(db, null, 2), 'utf-8');
+  } catch (err) {
+    // ignore
+  }
 }
 
 // Auth Middleware
@@ -785,7 +792,7 @@ async function startServer() {
 
   // Articles: Create New Article
   app.post('/api/articles', requireAuth as any, (req: AuthRequest, res) => {
-    const { title, category, answer, summary, keywords, questions, sources, source_title } = req.body;
+    const { title, category, answer, summary, keywords, questions, sources, source_title, image } = req.body;
 
     if (!title || !category || !answer) {
       return res.status(400).json({ error: 'გთხოვთ შეავსოთ სათაური, კატეგორია და აღწერა/პასუხი.' });
@@ -827,6 +834,7 @@ async function startServer() {
       questions: qArray.length ? qArray : [cleanTitle],
       sources: sArray,
       source_title: source_title ? String(source_title).trim() : undefined,
+      image: image ? String(image).trim() : undefined,
       author: {
         id: req.user!.id,
         username: req.user!.username,
@@ -861,7 +869,7 @@ async function startServer() {
       return res.status(403).json({ error: 'თქვენ არ გაქვთ ამ პოსტის რედაქტირების უფლება.' });
     }
 
-    const { title, category, answer, summary, keywords, questions, sources, source_title } = req.body;
+    const { title, category, answer, summary, keywords, questions, sources, source_title, image } = req.body;
 
     if (title !== undefined) {
       const cleanTitle = String(title).trim();
@@ -917,6 +925,10 @@ async function startServer() {
 
     if (source_title !== undefined) {
       article.source_title = String(source_title).trim() || undefined;
+    }
+
+    if (image !== undefined) {
+      article.image = image ? String(image).trim() : undefined;
     }
 
     saveDb(db);

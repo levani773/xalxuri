@@ -1,8 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Article } from '../types';
-import { X, Edit3, Link, Tag, HelpCircle } from 'lucide-react';
+import {
+  X,
+  Edit3,
+  Link,
+  Tag,
+  HelpCircle,
+  UploadCloud,
+  Image as ImageIcon,
+  Trash2,
+  Loader2,
+  CheckCircle2,
+} from 'lucide-react';
+import { compressImageFile } from '../utils/imageUtils';
 
 interface EditArticleModalProps {
   article: Article | null;
@@ -29,6 +41,7 @@ export const EditArticleModal: React.FC<EditArticleModalProps> = ({
   onArticleUpdated,
 }) => {
   const { showToast } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('ხალხური მედიცინა');
@@ -38,6 +51,8 @@ export const EditArticleModal: React.FC<EditArticleModalProps> = ({
   const [questions, setQuestions] = useState('');
   const [source, setSource] = useState('');
   const [sourceTitle, setSourceTitle] = useState('');
+  const [image, setImage] = useState<string | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,11 +66,45 @@ export const EditArticleModal: React.FC<EditArticleModalProps> = ({
       setQuestions((article.questions || []).join('\n'));
       setSource((article.sources && article.sources[0]) || '');
       setSourceTitle(article.source_title || '');
+      setImage(article.image || (article.images && article.images[0]) || null);
       setError(null);
     }
   }, [article, isOpen]);
 
   if (!isOpen || !article) return null;
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('გთხოვთ აირჩიოთ სურათის ფორმატის ფაილი (JPG, PNG, WebP).');
+      return;
+    }
+
+    setIsProcessingImage(true);
+    setError(null);
+
+    try {
+      // Resize to 250px max as requested
+      const compressed = await compressImageFile(file, 250, 250, 0.85);
+      setImage(compressed);
+    } catch (err: any) {
+      setError(err.message || 'სურათის დამუშავება ვერ მოხერხდა.');
+    } finally {
+      setIsProcessingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +127,7 @@ export const EditArticleModal: React.FC<EditArticleModalProps> = ({
         questions: questions.split('\n').map(q => q.trim()).filter(Boolean),
         sources: source.trim() ? [source.trim()] : [],
         source_title: sourceTitle.trim() || undefined,
+        image: image || '',
       });
 
       showToast('პოსტი წარმატებით განახლდა!');
@@ -105,7 +155,7 @@ export const EditArticleModal: React.FC<EditArticleModalProps> = ({
             <div>
               <h3 className="text-base font-bold text-white">პოსტის რედაქტირება</h3>
               <p className="text-[11px] text-slate-400">
-                შეცვალეთ სათაური, კატეგორია ან რეცეპტის შინაარსი
+                შეცვალეთ სათაური, კატეგორია, სურათი ან რეცეპტის შინაარსი
               </p>
             </div>
           </div>
@@ -168,6 +218,106 @@ export const EditArticleModal: React.FC<EditArticleModalProps> = ({
               placeholder="ან ჩაწერეთ საკუთარი კატეგორია..."
               className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
             />
+          </div>
+
+          {/* Image Upload/Change Section */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-emerald-400" />
+                <span>მასალის სურათი (შემცირდება 250px-მდე)</span>
+              </label>
+              <span className="text-[10px] text-slate-400">მაქს. 250px · ინახება JSON ბაზაში</span>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageFileChange}
+              className="hidden"
+              id="edit-article-image-upload"
+            />
+
+            {image ? (
+              <div className="flex items-center gap-4 p-3 bg-slate-900 border border-slate-800 rounded-xl">
+                <div className="relative group shrink-0 w-24 h-24 bg-slate-950 rounded-lg overflow-hidden border border-slate-700/80 flex items-center justify-center">
+                  <img
+                    src={image}
+                    alt="მასალის სურათი"
+                    className="max-w-[250px] max-h-[250px] w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      title="სურათის წაშლა"
+                      className="p-1.5 bg-rose-500/80 hover:bg-rose-500 text-white rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>სურათი ატვირთულია (250px)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-snug">
+                    სურათი ოპტიმიზებულია 250 პიქსელამდე და შეინახება JSON ფაილში.
+                  </p>
+                  <div className="pt-1 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium underline underline-offset-2"
+                    >
+                      სურათის შეცვლა
+                    </button>
+                    <span className="text-slate-600">·</span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="text-[11px] text-rose-400 hover:text-rose-300 font-medium underline underline-offset-2"
+                    >
+                      წაშლა
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label
+                htmlFor="edit-article-image-upload"
+                className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                  isProcessingImage
+                    ? 'border-emerald-500/50 bg-emerald-500/5'
+                    : 'border-slate-800 hover:border-emerald-500/60 bg-slate-900/40 hover:bg-slate-900/80'
+                }`}
+              >
+                {isProcessingImage ? (
+                  <div className="flex flex-col items-center gap-2 py-2 text-emerald-400">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <span className="text-xs font-medium">სურათი მუშავდება და მცირდება 250px-მდე...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5 text-center">
+                    <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
+                      <UploadCloud className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-slate-200">
+                        დააჭირეთ სურათის ასატვირთად
+                      </span>
+                      <span className="text-slate-500 text-xs"> ან გადმოათრიეთ ფაილი</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      JPG, PNG, WebP — ავტომატურად შემცირდება 250 პიქსელამდე და ჩაიწერება JSON-ში
+                    </p>
+                  </div>
+                )}
+              </label>
+            )}
           </div>
 
           <div>
@@ -267,10 +417,17 @@ export const EditArticleModal: React.FC<EditArticleModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors shadow-md shadow-emerald-950/50"
+              disabled={loading || isProcessingImage}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors shadow-md shadow-emerald-950/50 flex items-center gap-1.5"
             >
-              {loading ? 'ინახება...' : 'ცვლილებების შენახვა'}
+              {loading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>ინახება...</span>
+                </>
+              ) : (
+                <span>ცვლილებების შენახვა</span>
+              )}
             </button>
           </div>
         </form>
