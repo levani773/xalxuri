@@ -10,6 +10,7 @@ interface SearchSectionProps {
   onLikeChanged?: (articleId: string, isLiked: boolean, newCount: number) => void;
   onEditArticle?: (article: Article) => void;
   onDeleteArticle?: (articleId: string) => void;
+  onViewAuthor?: (authorId: string, authorName: string) => void;
   initialQuery?: string;
   initialCategory?: string;
 }
@@ -32,6 +33,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   onLikeChanged,
   onEditArticle,
   onDeleteArticle,
+  onViewAuthor,
   initialQuery = '',
   initialCategory = 'ყველა',
 }) => {
@@ -240,6 +242,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
               onLikeChanged={onLikeChanged}
               onEdit={onEditArticle}
               onDelete={onDeleteArticle}
+              onViewAuthor={onViewAuthor}
             />
           ))}
         </div>

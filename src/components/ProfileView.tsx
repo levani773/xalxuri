@@ -17,6 +17,8 @@ import {
   Shield,
   Clock,
   ArrowRight,
+  ArrowLeft,
+  Loader2,
   Camera,
   Upload,
   Image as ImageIcon,
@@ -27,10 +29,13 @@ import {
 import { ArticleCard } from './ArticleCard';
 
 interface ProfileViewProps {
+  viewUserId?: string | null;
+  onBack?: () => void;
   onSelectArticle: (article: Article) => void;
   onLikeChanged?: (articleId: string, isLiked: boolean, newCount: number) => void;
   onEditArticle?: (article: Article) => void;
   onDeleteArticle?: (articleId: string) => void;
+  onViewAuthor?: (authorId: string, authorName: string) => void;
 }
 
 const AVATAR_OPTIONS = [
@@ -72,13 +77,40 @@ const COVER_PRESETS = [
 ];
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
+  viewUserId,
+  onBack,
   onSelectArticle,
   onLikeChanged,
   onEditArticle,
   onDeleteArticle,
+  onViewAuthor,
 }) => {
   const { user, stats, openAuthModal, updateProfile, showToast } = useAuth();
   const [activeTab, setActiveTab] = useState<'liked' | 'comments' | 'created' | 'edit'>('liked');
+
+  const isViewingAuthor = Boolean(viewUserId && (!user || viewUserId !== user.id));
+  const [authorUser, setAuthorUser] = useState<any>(null);
+  const [authorCreatedArticles, setAuthorCreatedArticles] = useState<Article[]>([]);
+  const [authorLikedArticles, setAuthorLikedArticles] = useState<Article[]>([]);
+  const [loadingAuthor, setLoadingAuthor] = useState(false);
+
+  useEffect(() => {
+    if (isViewingAuthor && viewUserId) {
+      setLoadingAuthor(true);
+      api.getUserActivity(viewUserId)
+        .then(res => {
+          setAuthorUser(res.user);
+          setAuthorCreatedArticles(res.createdArticles || []);
+          setAuthorLikedArticles(res.likedArticles || []);
+        })
+        .catch(err => {
+          console.error('Failed to load author profile:', err);
+        })
+        .finally(() => {
+          setLoadingAuthor(false);
+        });
+    }
+  }, [isViewingAuthor, viewUserId]);
 
   const [likedArticles, setLikedArticles] = useState<Article[]>([]);
   const [userComments, setUserComments] = useState<Comment[]>([]);
@@ -106,14 +138,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const editTabCoverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (user) {
+    if (user && !isViewingAuthor) {
       setEditFullName(user.fullName || '');
       setEditBio(user.bio || '');
       setEditAvatar(user.avatar || 'nature');
       setEditCoverImage(user.coverImage || '');
       loadActivity(user.id);
     }
-  }, [user]);
+  }, [user, isViewingAuthor]);
 
   const loadActivity = async (userId: string) => {
     setLoadingActivity(true);
@@ -128,6 +160,157 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setLoadingActivity(false);
     }
   };
+
+  if (isViewingAuthor) {
+    if (loadingAuthor) {
+      return (
+        <div className="py-20 flex flex-col items-center justify-center space-y-3">
+          <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+          <p className="text-xs text-slate-400">ავტორის გვერდის ჩატვირთვა...</p>
+        </div>
+      );
+    }
+
+    const currentAuthor = authorUser || {
+      fullName: 'ავტორი',
+      username: 'author',
+      bio: '',
+      avatar: 'nature',
+      role: 'user',
+      createdAt: new Date().toISOString(),
+    };
+
+    const authorAvatarPreset = AVATAR_OPTIONS.find(a => a.id === currentAuthor.avatar);
+
+    return (
+      <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 text-emerald-400" />
+            <span>← ყველა რეცეპტზე დაბრუნება</span>
+          </button>
+        )}
+
+        {/* Profile Card / Banner */}
+        <div className="rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
+          {/* Cover Header */}
+          <div className="relative h-44 sm:h-56 bg-gradient-to-r from-emerald-950/60 via-slate-900 to-teal-950/60">
+            {currentAuthor.coverImage ? (
+              <img
+                src={currentAuthor.coverImage}
+                alt="Cover"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/30 via-slate-900 to-slate-950" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+          </div>
+
+          {/* Profile Header Details */}
+          <div className="px-6 pb-6 pt-0 relative -mt-16 sm:-mt-20">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
+                {/* Avatar */}
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-slate-950 border-4 border-slate-900 shadow-2xl flex items-center justify-center overflow-hidden">
+                  {currentAuthor.avatar && (currentAuthor.avatar.startsWith('data:') || currentAuthor.avatar.startsWith('http')) ? (
+                    <img src={currentAuthor.avatar} alt={currentAuthor.fullName} className="w-full h-full object-cover" />
+                  ) : authorAvatarPreset ? (
+                    <div className={`w-full h-full flex items-center justify-center text-3xl sm:text-4xl bg-gradient-to-br ${authorAvatarPreset.color} text-white`}>
+                      {authorAvatarPreset.icon}
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-3xl sm:text-4xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-bold">
+                      {currentAuthor.fullName ? currentAuthor.fullName.charAt(0).toUpperCase() : '🌿'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white">
+                      {currentAuthor.fullName || currentAuthor.username}
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      {currentAuthor.role === 'admin' ? 'ადმინისტრატორი' : 'ავტორი'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">@{currentAuthor.username}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bio */}
+            {currentAuthor.bio ? (
+              <p className="mt-4 text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                {currentAuthor.bio}
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500 italic">
+                ხალხური მედიცინისა და ბუნებრივი სამკურნალო რეცეპტების ავტორი.
+              </p>
+            )}
+
+            {/* Stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-800/80">
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-center">
+                <span className="text-xl font-bold text-emerald-400 tabular-nums">
+                  {authorCreatedArticles.length}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">გამოქვეყნებული რეცეპტი</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-center">
+                <span className="text-xl font-bold text-rose-400 tabular-nums">
+                  {authorLikedArticles.length}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">მოწონებული მასალა</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-center col-span-2 sm:col-span-1">
+                <span className="text-xl font-bold text-indigo-400 tabular-nums">
+                  {new Date(currentAuthor.createdAt || Date.now()).toLocaleDateString('ka-GE', { year: 'numeric', month: 'short' })}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">რეგისტრაციის თარიღი</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Author Articles Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-emerald-400" />
+              <span>ავტორის მიერ გამოქვეყნებული მასალები ({authorCreatedArticles.length})</span>
+            </h3>
+          </div>
+
+          {authorCreatedArticles.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 text-slate-400 text-xs">
+              ამ ავტორს ჯერ არ აქვს გამოქვეყნებული მასალები.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {authorCreatedArticles.map(art => (
+                <ArticleCard
+                  key={art.id}
+                  article={art}
+                  onSelect={onSelectArticle}
+                  onLikeChanged={onLikeChanged}
+                  onEdit={onEditArticle}
+                  onDelete={onDeleteArticle}
+                  onViewAuthor={onViewAuthor}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

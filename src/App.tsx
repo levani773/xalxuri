@@ -44,6 +44,16 @@ const MainAppContent: React.FC = () => {
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('ყველა');
 
+  // Author profile view state
+  const [viewingAuthorId, setViewingAuthorId] = useState<string | null>(null);
+
+  const handleViewAuthor = (authorId: string) => {
+    setViewingAuthorId(authorId);
+    setCurrentTab('profile');
+    setSelectedArticle(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Theme management (dark / light)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('codna_theme');
@@ -146,6 +156,9 @@ const MainAppContent: React.FC = () => {
       <Header
         currentTab={currentTab}
         onSelectTab={tab => {
+          if (tab === 'profile') {
+            setViewingAuthorId(null);
+          }
           setCurrentTab(tab);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
@@ -167,14 +180,6 @@ const MainAppContent: React.FC = () => {
                     <Sparkles className="w-4 h-4 text-emerald-400" />
                     <span>ხალხური მედიცინისა და ცოდნის ბაზა</span>
                   </div>
-
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight text-balance">
-                    ბუნებრივი რეცეპტები და გამოცდილი მეთოდები
-                  </h1>
-
-                  <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
-                    სისხლძარღვების გაწმენდა, მაღალი სიცხის დაწევა, იმუნიტეტის გაძლიერება, სახსრებისა და კუჭის მოწესრიგება. გაეცანით, მოიწონეთ, დააკომენტარეთ და გაუზიარეთ სხვებს.
-                  </p>
 
                   <div className="pt-2 flex flex-wrap items-center gap-3">
                     <button
@@ -207,28 +212,6 @@ const MainAppContent: React.FC = () => {
                       <span>რეცეპტის დამატება</span>
                     </button>
                   </div>
-
-                  {/* Trust markers & Metrics */}
-                  <div className="pt-4 border-t border-slate-800 flex items-center gap-6 text-xs text-slate-400">
-                    <div>
-                      <span className="block font-bold text-white text-base tabular-nums">
-                        {articles.length}
-                      </span>
-                      <span>სამკურნალო რეცეპტი</span>
-                    </div>
-                    <div className="border-l border-slate-800 pl-6">
-                      <span className="block font-bold text-white text-base tabular-nums">
-                        100%
-                      </span>
-                      <span>ხალხური &amp; ბუნებრივი</span>
-                    </div>
-                    <div className="border-l border-slate-800 pl-6">
-                      <span className="block font-bold text-white text-base tabular-nums">
-                        დაცული
-                      </span>
-                      <span>Django-ს სტანდარტი</span>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Featured Highlight Card */}
@@ -237,12 +220,25 @@ const MainAppContent: React.FC = () => {
                     onClick={() => setSelectedArticle(featuredArticle)}
                     className="lg:col-span-5 p-6 rounded-2xl bg-slate-950/80 border border-emerald-500/30 hover:border-emerald-500/60 shadow-xl cursor-pointer group transition-all duration-200"
                   >
-                    <div className="text-[11px] font-semibold text-emerald-400 mb-2 flex items-center justify-between">
+                    <div className="text-[11px] font-semibold text-emerald-400 mb-2 flex items-center justify-between flex-wrap gap-2">
                       <span className="flex items-center gap-1.5">
                         <TrendingUp className="w-3.5 h-3.5" />
                         <span>რჩეული მასალა (Featured)</span>
                       </span>
-                      <span className="text-slate-500">{featuredArticle.category}</span>
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleViewAuthor(featuredArticle.author.id);
+                        }}
+                        className="text-slate-400 hover:text-emerald-300 transition-colors flex items-center gap-1 group/author"
+                        title={`ავტორის პროფილი: ${featuredArticle.author.fullName || featuredArticle.author.username}`}
+                      >
+                        <span>ავტორი:</span>
+                        <span className="text-slate-200 group-hover/author:underline underline-offset-2">
+                          {featuredArticle.author.fullName || featuredArticle.author.username}
+                        </span>
+                      </button>
                     </div>
 
                     <h3 className="text-lg font-bold text-white group-hover:text-emerald-300 transition-colors mb-2 leading-snug">
@@ -313,6 +309,7 @@ const MainAppContent: React.FC = () => {
                     onLikeChanged={handleLikeChanged}
                     onEdit={handleEditArticle}
                     onDelete={handleArticleDeleted}
+                    onViewAuthor={handleViewAuthor}
                   />
                 ))}
               </div>
@@ -330,6 +327,7 @@ const MainAppContent: React.FC = () => {
               onLikeChanged={handleLikeChanged}
               onEditArticle={handleEditArticle}
               onDeleteArticle={handleArticleDeleted}
+              onViewAuthor={handleViewAuthor}
               initialQuery={activeSearchQuery}
               initialCategory={activeCategoryFilter}
             />
@@ -346,14 +344,20 @@ const MainAppContent: React.FC = () => {
           </div>
         )}
 
-        {/* VIEW 4: USER PROFILE */}
+        {/* VIEW 4: USER / AUTHOR PROFILE */}
         {currentTab === 'profile' && (
           <div className="animate-fade-in">
             <ProfileView
+              viewUserId={viewingAuthorId}
+              onBack={() => {
+                setViewingAuthorId(null);
+                setCurrentTab('feed');
+              }}
               onSelectArticle={setSelectedArticle}
               onLikeChanged={handleLikeChanged}
               onEditArticle={handleEditArticle}
               onDeleteArticle={handleArticleDeleted}
+              onViewAuthor={handleViewAuthor}
             />
           </div>
         )}
@@ -418,6 +422,7 @@ const MainAppContent: React.FC = () => {
         onCommentAdded={handleCommentAdded}
         onEdit={handleEditArticle}
         onDelete={handleArticleDeleted}
+        onViewAuthor={handleViewAuthor}
       />
 
       <AddArticleModal

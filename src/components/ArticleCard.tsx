@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Article } from '../types';
-import { Heart, MessageSquare, Eye, ExternalLink, ArrowRight, Edit3, Trash2 } from 'lucide-react';
+import { Heart, MessageSquare, Eye, ExternalLink, ArrowRight, Edit3, Trash2, User } from 'lucide-react';
 import { SharePopover } from './SharePopover';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -11,6 +11,7 @@ interface ArticleCardProps {
   onLikeChanged?: (articleId: string, isLiked: boolean, newCount: number) => void;
   onEdit?: (article: Article) => void;
   onDelete?: (articleId: string) => void;
+  onViewAuthor?: (authorId: string, authorName: string) => void;
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
@@ -19,6 +20,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   onLikeChanged,
   onEdit,
   onDelete,
+  onViewAuthor,
 }) => {
   const { user, openAuthModal, showToast } = useAuth();
   const [isLiked, setIsLiked] = useState(article.isLiked);
@@ -102,8 +104,26 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       <div>
         {/* Clean unboxed metadata with typographic separators (Zero-Pill Rule) */}
         <div className="flex items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
             <span className="text-emerald-400 font-medium">{article.category}</span>
+            <span aria-hidden="true">·</span>
+            {/* Author Name with link to profile */}
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                if (onViewAuthor) {
+                  onViewAuthor(article.author.id, article.author.fullName || article.author.username);
+                }
+              }}
+              title={`ავტორი: ${article.author.fullName || article.author.username}`}
+              className="inline-flex items-center gap-1 text-slate-300 hover:text-emerald-400 font-medium transition-colors group/author"
+            >
+              <User className="w-3 h-3 text-slate-500 group-hover/author:text-emerald-400" />
+              <span className="group-hover/author:underline underline-offset-2">
+                {article.author.fullName || article.author.username}
+              </span>
+            </button>
             <span aria-hidden="true">·</span>
             <span>{formattedDate}</span>
             <span aria-hidden="true">·</span>
@@ -206,7 +226,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </button>
 
           {/* Share */}
-          <SharePopover title={article.title} />
+          <SharePopover
+            title={article.title}
+            summary={article.summary}
+            image={article.image || (article.images && article.images[0])}
+            articleId={article.id}
+          />
         </div>
 
         {/* Read More button */}

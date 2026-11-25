@@ -410,8 +410,8 @@ export const api = {
 
     if (forceLocalFallback) {
       const act = await localDb.getUserActivity(userId);
-      const userRes = await localDb.getMe().catch(() => ({ user: defaultFallbackUser }));
-      return { user: userRes.user, ...act };
+      const userObj = act.user || (await localDb.getMe().catch(() => ({ user: defaultFallbackUser }))).user;
+      return { user: userObj, ...act };
     }
     try {
       return await request<{
@@ -424,8 +424,8 @@ export const api = {
       if (isFallbackError(err)) {
         forceLocalFallback = true;
         const act = await localDb.getUserActivity(userId);
-        const userRes = await localDb.getMe().catch(() => ({ user: defaultFallbackUser }));
-        return { user: userRes.user, ...act };
+        const userObj = act.user || (await localDb.getMe().catch(() => ({ user: defaultFallbackUser }))).user;
+        return { user: userObj, ...act };
       }
       throw err;
     }

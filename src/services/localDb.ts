@@ -485,16 +485,25 @@ export const localDb = {
   },
 
   async getUserActivity(userId: string): Promise<{
+    user?: User;
     likedArticles: Article[];
     comments: Comment[];
     createdArticles: Article[];
   }> {
     const db = await this.init();
+    const foundUser = db.users.find(u => u.id === userId);
     const likedArticles = db.articles.filter(a => (a.likes || []).includes(userId));
     const comments = db.comments.filter(c => c.userId === userId);
     const createdArticles = db.articles.filter(a => a.author.id === userId);
 
+    let safeUser: User | undefined = undefined;
+    if (foundUser) {
+      const { password: _, ...clean } = foundUser as User & { password?: string };
+      safeUser = clean;
+    }
+
     return {
+      user: safeUser,
       likedArticles,
       comments,
       createdArticles,
