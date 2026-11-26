@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Lock, Mail, User, ShieldCheck, Sparkles, Check } from 'lucide-react';
+import { X, Lock, Mail, User, ShieldCheck, Check } from 'lucide-react';
 
 const AVATAR_OPTIONS = [
   { id: 'nature', label: '🌿 მცენარე', color: 'from-emerald-500 to-teal-700' },
@@ -73,18 +73,6 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = async (username: string) => {
-    setError(null);
-    setLoading(true);
-    try {
-      await login(username, 'Password123!');
-      closeAuthModal();
-    } catch (err: any) {
-      setError(err.message || 'დემო შესვლის შეცდომა');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -204,30 +192,6 @@ export const AuthModal: React.FC = () => {
               >
                 {loading ? 'მიმდინარეობს შესვლა...' : 'სისტემაში შესვლა'}
               </button>
-
-              {/* Demo Login Shortcuts */}
-              <div className="pt-2 border-t border-slate-800">
-                <p className="text-[11px] text-slate-400 mb-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>სწრაფი ტესტირებისთვის (Demo Accounts):</span>
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDemoLogin('admin')}
-                    className="py-1.5 px-2 bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-[11px] transition-colors truncate"
-                  >
-                    👑 ადმინი (admin)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDemoLogin('levani')}
-                    className="py-1.5 px-2 bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-[11px] transition-colors truncate"
-                  >
-                    👤 მომხმარებელი (levani)
-                  </button>
-                </div>
-              </div>
             </form>
           ) : (
             <form onSubmit={handleRegisterSubmit} className="space-y-3">

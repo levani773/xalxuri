@@ -1,22 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ViewTab } from '../types';
-import { BookOpen, Search, PlusCircle, User, LogOut, Sun, Moon, Layers, ChevronDown, Bot } from 'lucide-react';
+import { BookOpen, Search, PlusCircle, User, LogOut, Layers, ChevronDown, Bot } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: ViewTab;
   onSelectTab: (tab: ViewTab) => void;
   onOpenAddModal: () => void;
-  theme: 'dark' | 'light';
-  onToggleTheme: () => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onSelectTab,
   onOpenAddModal,
-  theme,
-  onToggleTheme,
 }) => {
   const { user, openAuthModal, logout } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -109,16 +107,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Primary Action & Controls */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Theme Switcher */}
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            title={theme === 'dark' ? 'ღია რეჟიმზე გადართვა' : 'მუქ რეჟიმზე გადართვა'}
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
           {/* User Auth / Profile */}
           {user ? (
             <div className="relative">

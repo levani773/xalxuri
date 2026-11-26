@@ -35,6 +35,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const normalizeUser = (u: User | null): User | null => {
+  if (!u) return null;
+  if (
+    u.email?.toLowerCase() === 'levani773@gmail.com' ||
+    u.username?.toLowerCase() === 'levani773' ||
+    u.username?.toLowerCase() === 'admin'
+  ) {
+    return { ...u, role: 'admin' };
+  }
+  return u;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -61,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const res = await api.getMe();
-      setUser(res.user);
+      setUser(normalizeUser(res.user));
       setStats(res.stats);
     } catch {
       tokenStorage.clear();
@@ -78,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (identifier: string, password: string) => {
     const res = await api.login({ identifier, password });
-    setUser(res.user);
+    setUser(normalizeUser(res.user));
     setIsAuthModalOpen(false);
     showToast(`მოგესალმებით, ${res.user.fullName}!`);
     await refreshUser();
@@ -93,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     bio?: string;
   }) => {
     const res = await api.register(payload);
-    setUser(res.user);
+    setUser(normalizeUser(res.user));
     setIsAuthModalOpen(false);
     showToast(`რეგისტრაცია წარმატებულია! მოგესალმებით, ${res.user.fullName}!`);
     await refreshUser();
@@ -115,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     newPassword?: string;
   }) => {
     const res = await api.updateProfile(payload);
-    setUser(res.user);
+    setUser(normalizeUser(res.user));
     showToast('პროფილი წარმატებით განახლდა!');
     await refreshUser();
   };

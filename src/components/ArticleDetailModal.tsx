@@ -49,8 +49,18 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [isLiked, setIsLiked] = useState(article?.isLiked || false);
   const [likesCount, setLikesCount] = useState(article?.likesCount || 0);
   const [isDeletingArticle, setIsDeletingArticle] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const canModify = Boolean(user && article && (user.id === article.author.id || user.role === 'admin'));
+  const isUserAdmin = Boolean(
+    user && (
+      user.role === 'admin' ||
+      user.email?.toLowerCase() === 'levani773@gmail.com' ||
+      user.username?.toLowerCase() === 'levani773' ||
+      user.username?.toLowerCase() === 'admin'
+    )
+  );
+  const isAuthor = Boolean(user && article && user.id === article.author.id);
+  const canModify = isUserAdmin || isAuthor;
 
   useEffect(() => {
     if (article) {
@@ -161,9 +171,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     }
   };
 
-  const handleDeleteArticle = async () => {
-    if (!article) return;
-    if (!confirm(`ნამდვილად გსურთ პოსტის «${article.title}» წაშლა? ეს ქმედება შეუქცევადია.`)) return;
+  const handleExecuteDeleteArticle = async () => {
+    if (!article || !canModify) return;
 
     setIsDeletingArticle(true);
     try {
@@ -177,6 +186,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       showToast(err.message || 'პოსტის წაშლა ვერ მოხერხდა.');
     } finally {
       setIsDeletingArticle(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -233,7 +243,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {canModify && onEdit && (
+            {canModify && onEdit && !showDeleteConfirm && (
               <button
                 type="button"
                 onClick={() => {
@@ -248,15 +258,35 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             )}
 
             {canModify && onDelete && (
-              <button
-                type="button"
-                onClick={handleDeleteArticle}
-                disabled={isDeletingArticle}
-                title="პოსტის წაშლა"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              showDeleteConfirm ? (
+                <div className="inline-flex items-center gap-1.5 bg-rose-950/95 border border-rose-500/60 rounded-xl px-2.5 py-1 text-xs shadow-lg animate-fade-in">
+                  <span className="text-rose-200 text-xs font-medium">წავშალო?</span>
+                  <button
+                    type="button"
+                    onClick={handleExecuteDeleteArticle}
+                    disabled={isDeletingArticle}
+                    className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white rounded text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {isDeletingArticle ? '...' : 'დიახ'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-1.5 py-0.5 text-slate-300 hover:text-white rounded text-xs transition-colors"
+                  >
+                    არა
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  title="პოსტის წაშლა"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )
             )}
 
             <button
@@ -421,7 +451,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {/* Edit & Delete for author or admin */}
               {canModify && (
                 <div className="flex items-center gap-2">
-                  {onEdit && (
+                  {onEdit && !showDeleteConfirm && (
                     <button
                       type="button"
                       onClick={() => {
@@ -437,16 +467,36 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                   )}
 
                   {onDelete && (
-                    <button
-                      type="button"
-                      onClick={handleDeleteArticle}
-                      disabled={isDeletingArticle}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-rose-500/10 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 transition-colors disabled:opacity-50"
-                      title="პოსტის წაშლა"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                      <span>{isDeletingArticle ? 'იშლება...' : 'წაშლა'}</span>
-                    </button>
+                    showDeleteConfirm ? (
+                      <div className="inline-flex items-center gap-2 bg-rose-950/95 border border-rose-500/60 rounded-xl px-3 py-1.5 text-xs shadow-lg animate-fade-in">
+                        <span className="text-rose-200 font-medium">ნამდვილად წავშალო?</span>
+                        <button
+                          type="button"
+                          onClick={handleExecuteDeleteArticle}
+                          disabled={isDeletingArticle}
+                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+                        >
+                          {isDeletingArticle ? 'იშლება...' : 'დიახ, წაშალე'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="px-2 py-1 text-slate-300 hover:text-white rounded-lg transition-colors"
+                        >
+                          გაუქმება
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-rose-500/10 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 transition-colors"
+                        title="პოსტის წაშლა"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                        <span>წაშლა</span>
+                      </button>
+                    )
                   )}
                 </div>
               )}

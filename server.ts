@@ -126,18 +126,21 @@ function ensureDatabase(): DatabaseSchema {
   }
 
   // Default seed admin and demo user
+  const adminSalt = crypto.randomBytes(16).toString('hex');
+  const adminPasswordHash = hashPassword('Aba545454', adminSalt);
+
   const demoSalt = crypto.randomBytes(16).toString('hex');
   const demoPasswordHash = hashPassword('Password123!', demoSalt);
 
   const adminUser: User = {
     id: 'user_admin_01',
-    username: 'admin',
-    email: 'admin@codna.ge',
-    fullName: 'ხალხური მედიცინის რედაქტორი',
-    passwordHash: demoPasswordHash,
-    salt: demoSalt,
+    username: 'levani773',
+    email: 'levani773@gmail.com',
+    fullName: 'ლევანი',
+    passwordHash: adminPasswordHash,
+    salt: adminSalt,
     avatar: 'botanist',
-    bio: 'სამკურნალო მცენარეებისა და ხალხური რეცეპტების მკვლევარი.',
+    bio: 'ხალხური მედიცინის რედაქტორი და ადმინისტრატორი.',
     createdAt: new Date().toISOString(),
     role: 'admin',
   };
@@ -589,7 +592,7 @@ async function startServer() {
     const cleanId = String(identifier).trim().toLowerCase();
     const db = getDb();
 
-    const user = db.users.find(u => u.username === cleanId || u.email === cleanId);
+    const user = db.users.find(u => u.username === cleanId || u.email === cleanId || (cleanId === 'admin' && u.role === 'admin'));
     if (!user) {
       return res.status(401).json({ error: 'მომხმარებლის სახელი ან პაროლი არასწორია.' });
     }
@@ -865,7 +868,12 @@ async function startServer() {
       return res.status(404).json({ error: 'მასალა ვერ მოიძებნა.' });
     }
 
-    if (article.author.id !== req.user!.id && req.user!.role !== 'admin') {
+    const isUserAdmin = req.user!.role === 'admin' ||
+      req.user!.email?.toLowerCase() === 'levani773@gmail.com' ||
+      req.user!.username?.toLowerCase() === 'levani773' ||
+      req.user!.username?.toLowerCase() === 'admin';
+
+    if (article.author.id !== req.user!.id && !isUserAdmin) {
       return res.status(403).json({ error: 'თქვენ არ გაქვთ ამ პოსტის რედაქტირების უფლება.' });
     }
 
@@ -953,7 +961,12 @@ async function startServer() {
     }
 
     const article = db.articles[index];
-    if (article.author.id !== req.user!.id && req.user!.role !== 'admin') {
+    const isUserAdmin = req.user!.role === 'admin' ||
+      req.user!.email?.toLowerCase() === 'levani773@gmail.com' ||
+      req.user!.username?.toLowerCase() === 'levani773' ||
+      req.user!.username?.toLowerCase() === 'admin';
+
+    if (article.author.id !== req.user!.id && !isUserAdmin) {
       return res.status(403).json({ error: 'თქვენ არ გაქვთ ამ პოსტის წაშლის უფლება.' });
     }
 

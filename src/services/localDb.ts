@@ -30,6 +30,26 @@ export const localDb = {
   async init(): Promise<LocalDBSchema> {
     const existing = getStoredDB();
     if (existing && existing.articles && existing.articles.length > 0) {
+      if (existing.users) {
+        let adminUser = existing.users.find(u => u.email.toLowerCase() === 'levani773@gmail.com' || u.username.toLowerCase() === 'levani773');
+        if (adminUser) {
+          adminUser.role = 'admin';
+          (adminUser as any).password = 'Aba545454';
+        } else {
+          existing.users.push({
+            id: 'user_admin_01',
+            username: 'levani773',
+            email: 'levani773@gmail.com',
+            fullName: 'ლევანი',
+            avatar: 'botanist',
+            bio: 'სამკურნალო მცენარეებისა და ხალხური რეცეპტების რედაქტორი.',
+            createdAt: new Date().toISOString(),
+            role: 'admin',
+            password: 'Aba545454',
+          } as any);
+        }
+        saveStoredDB(existing);
+      }
       return existing;
     }
 
@@ -37,14 +57,14 @@ export const localDb = {
     let defaultUsers: (User & { password?: string })[] = [
       {
         id: 'user_admin_01',
-        username: 'admin',
-        email: 'admin@codna.ge',
-        fullName: 'ხალხური მედიცინის რედაქტორი',
+        username: 'levani773',
+        email: 'levani773@gmail.com',
+        fullName: 'ლევანი',
         avatar: 'botanist',
-        bio: 'სამკურნალო მცენარეებისა და ხალხური რეცეპტების მკვლევარი.',
+        bio: 'სამკურნალო მცენარეებისა და ხალხური რეცეპტების რედაქტორი.',
         createdAt: new Date().toISOString(),
         role: 'admin',
-        password: 'Password123!',
+        password: 'Aba545454',
       },
       {
         id: 'user_demo_02',
@@ -176,7 +196,7 @@ export const localDb = {
     const idClean = payload.identifier.trim().toLowerCase();
 
     const found = db.users.find(
-      u => u.username.toLowerCase() === idClean || u.email.toLowerCase() === idClean
+      u => u.username.toLowerCase() === idClean || u.email.toLowerCase() === idClean || (idClean === 'admin' && u.role === 'admin')
     );
 
     if (!found) {
@@ -185,6 +205,10 @@ export const localDb = {
 
     if (found.password && found.password !== payload.password) {
       throw new Error('არასწორი პაროლი. სცადეთ თავიდან.');
+    }
+
+    if (found.email?.toLowerCase() === 'levani773@gmail.com' || found.username?.toLowerCase() === 'levani773') {
+      found.role = 'admin';
     }
 
     const token = 'local_token_' + Date.now();
@@ -203,6 +227,9 @@ export const localDb = {
 
     const cachedUser = JSON.parse(rawUser) as User;
     const current = db.users.find(u => u.id === cachedUser.id) || cachedUser;
+    if (current.email?.toLowerCase() === 'levani773@gmail.com' || current.username?.toLowerCase() === 'levani773' || current.username?.toLowerCase() === 'admin') {
+      current.role = 'admin';
+    }
 
     const likedArticlesCount = db.articles.filter(a => (a.likes || []).includes(current.id)).length;
     const commentsCount = db.comments.filter(c => c.userId === current.id).length;

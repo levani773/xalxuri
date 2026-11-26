@@ -27,8 +27,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   const [likesCount, setLikesCount] = useState(article.likesCount);
   const [isLiking, setIsLiking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const canModify = Boolean(user && (user.id === article.author.id || user.role === 'admin'));
+  const isUserAdmin = Boolean(
+    user && (
+      user.role === 'admin' ||
+      user.email?.toLowerCase() === 'levani773@gmail.com' ||
+      user.username?.toLowerCase() === 'levani773' ||
+      user.username?.toLowerCase() === 'admin'
+    )
+  );
+  const isAuthor = Boolean(user && user.id === article.author.id);
+  const canModify = isUserAdmin || isAuthor;
 
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,10 +81,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     }
   };
 
-  const handleDeleteClick = async (e: React.MouseEvent) => {
+  const handleExecuteDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) return;
-    if (!confirm(`ნამდვილად გსურთ პოსტის «${article.title}» წაშლა?`)) return;
+    if (!canModify) return;
 
     setIsDeleting(true);
     try {
@@ -87,6 +96,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       showToast(err.message || 'პოსტის წაშლა ვერ მოხერხდა.');
     } finally {
       setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -134,8 +144,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </div>
 
           {canModify && (
-            <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-              {onEdit && (
+            <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity ml-auto">
+              {onEdit && !showDeleteConfirm && (
                 <button
                   type="button"
                   onClick={handleEditClick}
@@ -146,15 +156,44 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 </button>
               )}
               {onDelete && (
-                <button
-                  type="button"
-                  onClick={handleDeleteClick}
-                  disabled={isDeleting}
-                  title="პოსტის წაშლა"
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors disabled:opacity-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                showDeleteConfirm ? (
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 bg-rose-950/95 border border-rose-500/60 rounded-lg px-2 py-0.5 text-xs shadow-lg animate-fade-in z-20"
+                  >
+                    <span className="text-rose-200 text-[11px] font-medium">წავშალო?</span>
+                    <button
+                      type="button"
+                      onClick={handleExecuteDelete}
+                      disabled={isDeleting}
+                      className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white rounded text-[11px] font-semibold transition-colors disabled:opacity-50"
+                    >
+                      {isDeleting ? '...' : 'დიახ'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setShowDeleteConfirm(false);
+                      }}
+                      className="px-1 py-0.5 text-slate-300 hover:text-white rounded text-[11px] transition-colors"
+                    >
+                      არა
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    title="პოსტის წაშლა"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )
               )}
             </div>
           )}

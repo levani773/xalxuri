@@ -5,13 +5,14 @@
       "username": "admin",
       "email": "admin@codna.ge",
       "fullName": "ხალხური მედიცინის რედაქტორი",
-      "passwordHash": "c8dbe932676e1f4fea36b0c06b8421a3b9a029e0bfebd6a99e67622fcd5b7b141170c0b2b72646e4f85d121198822eb825a1b1ae0e3acb2f1d677cfa5636a20e",
-      "salt": "3dd6b6e5e8429ae29667b66d07eb8dec",
+      "passwordHash": "84096d5820301c376168ac9e290eae60e5e064c06467800220bff39004e7bcf6e793b9624220552cf6cfb37a442017b809c4c73a8277eee9c58a505a944a782a",
+      "salt": "1c20fc4db6b1fd8872c25731afa46cb0",
       "avatar": "botanist",
       "bio": "სამკურნალო მცენარეებისა და ხალხური რეცეპტების მკვლევარი.",
       "createdAt": "2026-11-21T12:55:22.585Z",
       "role": "admin",
-      "coverImage": ""
+      "coverImage": "",
+      "password": "Aba545454"
     },
     {
       "id": "user_demo_02",
@@ -30,12 +31,13 @@
       "username": "levani773",
       "email": "levani773@gmail.com",
       "fullName": "ლევანი",
-      "passwordHash": "eb6ca05a35615461298b6c1851a30688d199b191e61aca310123955610052d819860e35b76b4328615980ce96c79b04128c94c80c40bff249e69e5ee161a345b",
-      "salt": "4d0cd111c2c735e7ed36daf4be0f94e1",
+      "passwordHash": "bf385d4d22967bbe646373c75953f1cfb2c1c10eb72ccfe6ff45110255bec74a7021c3ea6b2f76cffb2fda899e7a7563eee414e0ddf1c337da81854d4e9c1768",
+      "salt": "619ee083725dc6260d0126e5a0c79a86",
       "avatar": "sun",
       "bio": "",
       "createdAt": "2026-11-21T13:01:23.423Z",
-      "role": "user"
+      "role": "admin",
+      "password": "Aba545454"
     }
   ],
   "articles": [
@@ -447,6 +449,30 @@
       "userId": "user_admin_01",
       "createdAt": "2026-11-22T16:57:25.869Z",
       "expiresAt": "2026-12-22T16:57:25.869Z"
+    },
+    {
+      "token": "ffb78e64a338fe7367b88f20180f4f1b089ca41a5c3903823a2446a2b4d517d5",
+      "userId": "user_1795266083423_a82eda9d",
+      "createdAt": "2026-11-26T17:54:18.033Z",
+      "expiresAt": "2026-12-26T17:54:18.033Z"
+    },
+    {
+      "token": "93e38044372752a71485eabe30aacb310f6b917d7d0287381b182c01f5a98ae1",
+      "userId": "user_1795266083423_a82eda9d",
+      "createdAt": "2026-11-26T17:59:35.083Z",
+      "expiresAt": "2026-12-26T17:59:35.082Z"
+    },
+    {
+      "token": "b0caefbd2da9e1bd8285da32eccfaa6790c61435db8c27d9e8451c503c13be01",
+      "userId": "user_1795266083423_a82eda9d",
+      "createdAt": "2026-11-26T18:07:39.636Z",
+      "expiresAt": "2026-12-26T18:07:39.636Z"
+    },
+    {
+      "token": "b94c29995bba21e8cce419bf47b31d163413a372a5b377e8c7d6f88ddf5cfcc0",
+      "userId": "user_1795266083423_a82eda9d",
+      "createdAt": "2026-11-26T18:10:59.851Z",
+      "expiresAt": "2026-12-26T18:10:59.850Z"
     }
   ],
   "unanswered": [
