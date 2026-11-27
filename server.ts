@@ -466,6 +466,107 @@ function saveDb(db: DatabaseSchema) {
   }
 }
 
+// Helpers for persisting article images and open graph pages
+function saveArticleImage(articleId: string, imageSource?: string): string | undefined {
+  if (!imageSource) return undefined;
+  if (imageSource.startsWith('/assets/') || imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
+    return imageSource;
+  }
+  if (imageSource.startsWith('data:image/')) {
+    const match = imageSource.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+    if (match) {
+      const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+      const filename = `${articleId}.${ext}`;
+      const buf = Buffer.from(match[2], 'base64');
+      const targetDir = path.resolve(__dirname, 'public/assets/articles');
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      fs.writeFileSync(path.resolve(targetDir, filename), buf);
+      const distTargetDir = path.resolve(__dirname, 'dist/assets/articles');
+      if (fs.existsSync(path.resolve(__dirname, 'dist'))) {
+        if (!fs.existsSync(distTargetDir)) {
+          fs.mkdirSync(distTargetDir, { recursive: true });
+        }
+        fs.writeFileSync(path.resolve(distTargetDir, filename), buf);
+      }
+      return `/assets/articles/${filename}`;
+    }
+  }
+  return imageSource;
+}
+
+function syncArticleSharePage(article: Article) {
+  try {
+    const publicArticlesDir = path.resolve(__dirname, 'public/article', article.id);
+    if (!fs.existsSync(publicArticlesDir)) {
+      fs.mkdirSync(publicArticlesDir, { recursive: true });
+    }
+    const cleanTitle = (article.title || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const cleanDesc = (article.summary || article.answer || '').slice(0, 160).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let imageUrl = 'https://xalxuri.netlify.app/og-image.jpg';
+    if (article.image) {
+      if (article.image.startsWith('http://') || article.image.startsWith('https://')) {
+        imageUrl = article.image;
+      } else {
+        imageUrl = `https://xalxuri.netlify.app${article.image.startsWith('/') ? '' : '/'}${article.image}`;
+      }
+    }
+    const html = `<!doctype html>
+<html lang="ka" prefix="og: https://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${cleanTitle}</title>
+  <meta name="description" content="${cleanDesc}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${cleanTitle}" />
+  <meta property="og:description" content="${cleanDesc}" />
+  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:secure_url" content="${imageUrl}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="675" />
+  <meta property="og:image:alt" content="${cleanTitle}" />
+  <meta property="og:url" content="https://xalxuri.netlify.app/article/${article.id}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${cleanTitle}" />
+  <meta name="twitter:description" content="${cleanDesc}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:image:alt" content="${cleanTitle}" />
+  <script>
+    (function() {
+      var ua = (navigator.userAgent || '').toLowerCase();
+      var isBot = /facebookexternalhit|facebot|twitterbot|telegrambot|whatsapp|viber|slackbot|discordbot|googlebot|bingbot|pinterest/i.test(ua);
+      if (!isBot && typeof window !== 'undefined') {
+        window.location.replace('/?article=${encodeURIComponent(article.id)}');
+      }
+    })();
+  </script>
+</head>
+<body style="background:#020617;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;padding:2rem;text-align:center;min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="max-width:540px;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${cleanTitle}" style="width:100%;height:220px;object-fit:cover;border-radius:12px;margin-bottom:16px;" />` : ''}
+    <h1 style="font-size:1.4rem;font-weight:700;color:#f8fafc;margin-bottom:12px;line-height:1.4;">${cleanTitle}</h1>
+    <p style="color:#94a3b8;font-size:0.95rem;line-height:1.6;margin-bottom:20px;">${cleanDesc}</p>
+    <a href="/?article=${encodeURIComponent(article.id)}" style="display:inline-block;background:#10b981;color:#ffffff;font-weight:600;padding:10px 20px;border-radius:10px;text-decoration:none;font-size:0.95rem;">
+      სრულად წაკითხვა &rarr;
+    </a>
+  </div>
+</body>
+</html>`;
+    fs.writeFileSync(path.resolve(publicArticlesDir, 'index.html'), html, 'utf-8');
+    if (fs.existsSync(path.resolve(__dirname, 'dist'))) {
+      const distDir = path.resolve(__dirname, 'dist/article', article.id);
+      if (!fs.existsSync(distDir)) {
+        fs.mkdirSync(distDir, { recursive: true });
+      }
+      fs.writeFileSync(path.resolve(distDir, 'index.html'), html, 'utf-8');
+    }
+  } catch (e) {
+    console.error('Failed to sync article share page:', e);
+  }
+}
+
 // Auth Middleware
 interface AuthRequest extends Request {
   user?: User;
@@ -827,8 +928,11 @@ async function startServer() {
           .filter(Boolean);
 
     const db = getDb();
+    const articleId = 'art_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
+    const processedImage = saveArticleImage(articleId, image);
+
     const newArticle: Article = {
-      id: 'art_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
+      id: articleId,
       title: cleanTitle,
       category: cleanCategory,
       summary: summary ? String(summary).trim() : cleanAnswer.slice(0, 150) + '...',
@@ -837,7 +941,7 @@ async function startServer() {
       questions: qArray.length ? qArray : [cleanTitle],
       sources: sArray,
       source_title: source_title ? String(source_title).trim() : undefined,
-      image: image ? String(image).trim() : undefined,
+      image: processedImage || (image ? String(image).trim() : undefined),
       author: {
         id: req.user!.id,
         username: req.user!.username,
@@ -850,6 +954,7 @@ async function startServer() {
 
     db.articles.unshift(newArticle);
     saveDb(db);
+    syncArticleSharePage(newArticle);
 
     res.status(201).json({
       ...newArticle,
@@ -936,10 +1041,12 @@ async function startServer() {
     }
 
     if (image !== undefined) {
-      article.image = image ? String(image).trim() : undefined;
+      const processedImage = saveArticleImage(article.id, image);
+      article.image = processedImage || (image ? String(image).trim() : undefined);
     }
 
     saveDb(db);
+    syncArticleSharePage(article);
 
     const commentsCount = db.comments.filter(c => c.articleId === article.id).length;
     res.json({
@@ -1459,6 +1566,7 @@ ${snippet}
     }
 
     saveDb(db);
+    syncArticleSharePage(newArticle);
     return newArticle;
   }
 
@@ -1598,6 +1706,114 @@ ${snippet}
           'სამწუხაროდ, ამ კითხვაზე ზუსტი პასუხი ინტერნეტშიც ვერ მოიძებნა. 😅\n\nსცადეთ სხვანაირად ჩამოაყალიბოთ კითხვა.',
       });
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // OpenGraph Dynamic Scraping Endpoints (Facebook, Twitter, WhatsApp, etc.)
+  // -------------------------------------------------------------------------
+
+  // Dynamic Image Server for scrapers & social previews
+  app.get('/api/articles/:id/image', (req, res) => {
+    const db = getDb();
+    const article = db.articles.find(a => a.id === req.params.id);
+    if (!article || !article.image) {
+      return res.redirect('/og-image.jpg');
+    }
+    if (article.image.startsWith('data:image/')) {
+      const match = article.image.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+      if (match) {
+        res.setHeader('Content-Type', `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}`);
+        return res.send(Buffer.from(match[2], 'base64'));
+      }
+    }
+    if (article.image.startsWith('/assets/')) {
+      const localPath = path.resolve(__dirname, 'public', article.image.replace(/^\//, ''));
+      if (fs.existsSync(localPath)) {
+        return res.sendFile(localPath);
+      }
+    }
+    if (article.image.startsWith('http://') || article.image.startsWith('https://')) {
+      return res.redirect(article.image);
+    }
+    res.redirect('/og-image.jpg');
+  });
+
+  // Dynamic OpenGraph page for /article/:id and /share/:id
+  app.get(['/article/:id', '/share/:id'], (req, res) => {
+    const db = getDb();
+    const article = db.articles.find(a => a.id === req.params.id);
+    if (!article) {
+      return res.redirect('/?article=' + encodeURIComponent(req.params.id));
+    }
+
+    const host = req.get('host') || 'xalxuri.netlify.app';
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const baseUrl = `${protocol}://${host}`;
+
+    let imageUrl = `${baseUrl}/og-image.jpg`;
+    if (article.image) {
+      if (article.image.startsWith('http://') || article.image.startsWith('https://')) {
+        imageUrl = article.image;
+      } else if (article.image.startsWith('/')) {
+        imageUrl = `${baseUrl}${article.image}`;
+      } else {
+        imageUrl = `${baseUrl}/${article.image}`;
+      }
+    }
+
+    const cleanTitle = (article.title || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const cleanDesc = (article.summary || article.answer || '').slice(0, 160).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const html = `<!doctype html>
+<html lang="ka" prefix="og: https://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${cleanTitle}</title>
+  <meta name="description" content="${cleanDesc}" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${cleanTitle}" />
+  <meta property="og:description" content="${cleanDesc}" />
+  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:secure_url" content="${imageUrl}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="675" />
+  <meta property="og:image:alt" content="${cleanTitle}" />
+  <meta property="og:url" content="${baseUrl}/article/${article.id}" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${cleanTitle}" />
+  <meta name="twitter:description" content="${cleanDesc}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:image:alt" content="${cleanTitle}" />
+
+  <!-- Direct human browser into the interactive app -->
+  <script>
+    (function() {
+      var ua = (navigator.userAgent || '').toLowerCase();
+      var isBot = /facebookexternalhit|facebot|twitterbot|telegrambot|whatsapp|viber|slackbot|discordbot|googlebot|bingbot|pinterest/i.test(ua);
+      if (!isBot && typeof window !== 'undefined') {
+        window.location.replace('/?article=${encodeURIComponent(article.id)}');
+      }
+    })();
+  </script>
+</head>
+<body style="background:#020617;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;padding:2rem;text-align:center;min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="max-width:540px;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${cleanTitle}" style="width:100%;height:220px;object-fit:cover;border-radius:12px;margin-bottom:16px;" />` : ''}
+    <h1 style="font-size:1.4rem;font-weight:700;color:#f8fafc;margin-bottom:12px;line-height:1.4;">${cleanTitle}</h1>
+    <p style="color:#94a3b8;font-size:0.95rem;line-height:1.6;margin-bottom:20px;">${cleanDesc}</p>
+    <a href="/?article=${encodeURIComponent(article.id)}" style="display:inline-block;background:#10b981;color:#ffffff;font-weight:600;padding:10px 20px;border-radius:10px;text-decoration:none;font-size:0.95rem;">
+      სრულად წაკითხვა &rarr;
+    </a>
+  </div>
+</body>
+</html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
   });
 
   // -------------------------------------------------------------------------

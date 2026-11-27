@@ -35,19 +35,21 @@ export const SharePopover: React.FC<SharePopoverProps> = ({
   // Fallback to og-image.jpg if no specific image is provided
   const displayImage = image || '/og-image.jpg';
 
-  // Construct sharing URL
+  // Construct sharing URL (using /article/:id so crawlers like Facebook fetch the post's metadata)
   const baseUrl =
     typeof window !== 'undefined'
-      ? window.location.origin
+      ? (window.location.hostname === 'localhost' || window.location.hostname.includes('run.app')
+          ? window.location.origin
+          : 'https://xalxuri.netlify.app')
       : 'https://xalxuri.netlify.app';
 
   const shareUrl =
     url ||
-    (articleId ? `${baseUrl}/#article-${articleId}` : baseUrl);
+    (articleId ? `${baseUrl}/article/${articleId}` : baseUrl);
 
   const encodedUrl = encodeURIComponent(shareUrl);
-  const shareText = `🌿 ${title}${summary ? ` — ${summary.slice(0, 100)}...` : ''}`;
-  const encodedTitle = encodeURIComponent(shareText);
+  // Use post title without prefixing site name
+  const encodedTitle = encodeURIComponent(title);
 
   const handleCopy = async () => {
     try {
@@ -72,8 +74,8 @@ export const SharePopover: React.FC<SharePopoverProps> = ({
     if (navigator.share) {
       try {
         const shareData: ShareData = {
-          title: `ცოდნის პორტალი: ${title}`,
-          text: `${title}\n${summary || 'ხალხური მედიცინის რეცეპტი და რჩევები'}`,
+          title: title, // strictly post title
+          text: `${title}${summary ? ` — ${summary}` : ''}`,
           url: shareUrl,
         };
 
@@ -82,7 +84,7 @@ export const SharePopover: React.FC<SharePopoverProps> = ({
           try {
             const res = await fetch(displayImage);
             const blob = await res.blob();
-            const file = new File([blob], 'recipe-share.jpg', { type: blob.type || 'image/jpeg' });
+            const file = new File([blob], `${title.slice(0, 20)}.jpg`, { type: blob.type || 'image/jpeg' });
             if (navigator.canShare({ files: [file] })) {
               shareData.files = [file];
             }
@@ -134,7 +136,7 @@ export const SharePopover: React.FC<SharePopoverProps> = ({
       color: 'hover:text-emerald-500 hover:bg-emerald-500/10 text-emerald-400',
       action: () => {
         window.open(
-          `https://api.whatsapp.com/send?text=${encodedTitle}%20${encodedUrl}`,
+          `https://api.whatsapp.com/send?text=${encodedTitle}%0A${encodedUrl}`,
           '_blank'
         );
         if (onShared) onShared('whatsapp');
@@ -152,6 +154,19 @@ export const SharePopover: React.FC<SharePopoverProps> = ({
           'width=600,height=400'
         );
         if (onShared) onShared('twitter');
+        setIsOpen(false);
+      },
+    },
+    {
+      name: 'Viber',
+      icon: Smartphone,
+      color: 'hover:text-purple-500 hover:bg-purple-500/10 text-purple-400',
+      action: () => {
+        window.open(
+          `viber://forward?text=${encodedTitle}%0A${encodedUrl}`,
+          '_blank'
+        );
+        if (onShared) onShared('viber');
         setIsOpen(false);
       },
     },

@@ -96,6 +96,49 @@ const MainAppContent: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  // Handle article selection with URL synchronization
+  const handleSelectArticle = useCallback((article: Article | null) => {
+    setSelectedArticle(article);
+    if (typeof window !== 'undefined') {
+      if (article) {
+        window.history.replaceState(null, '', `/?article=${encodeURIComponent(article.id)}`);
+      } else {
+        // Reset query param/path to home
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete('article');
+        const cleanPath = currentUrl.pathname.startsWith('/article') ? '/' : currentUrl.pathname;
+        window.history.replaceState(null, '', cleanPath + (currentUrl.search || ''));
+      }
+    }
+  }, []);
+
+  // Deep-linking: auto-open article from ?article=..., /article/..., or #article-...
+  useEffect(() => {
+    if (articles.length === 0) return;
+
+    let targetId: string | null = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const qArticle = urlParams.get('article');
+
+    if (qArticle) {
+      targetId = qArticle;
+    } else if (window.location.pathname.startsWith('/article/')) {
+      const match = window.location.pathname.match(/\/article\/([^\/]+)/);
+      if (match && match[1]) {
+        targetId = decodeURIComponent(match[1]);
+      }
+    } else if (window.location.hash.startsWith('#article-')) {
+      targetId = window.location.hash.replace('#article-', '');
+    }
+
+    if (targetId) {
+      const found = articles.find(a => a.id === targetId);
+      if (found) {
+        setSelectedArticle(found);
+      }
+    }
+  }, [articles]);
+
   // When like status changes in card or modal, update locally
   const handleLikeChanged = (articleId: string, isLiked: boolean, newCount: number) => {
     setArticles(prev =>
@@ -138,7 +181,7 @@ const MainAppContent: React.FC = () => {
   const handleArticleDeleted = (articleId: string) => {
     setArticles(prev => prev.filter(a => a.id !== articleId));
     if (selectedArticle && selectedArticle.id === articleId) {
-      setSelectedArticle(null);
+      handleSelectArticle(null);
     }
     loadData();
   };
@@ -217,7 +260,7 @@ const MainAppContent: React.FC = () => {
                 {/* Featured Highlight Card */}
                 {featuredArticle && (
                   <div
-                    onClick={() => setSelectedArticle(featuredArticle)}
+                    onClick={() => handleSelectArticle(featuredArticle)}
                     className="lg:col-span-5 p-6 rounded-2xl bg-slate-950/80 border border-emerald-500/30 hover:border-emerald-500/60 shadow-xl cursor-pointer group transition-all duration-200"
                   >
                     <div className="text-[11px] font-semibold text-emerald-400 mb-2 flex items-center justify-between flex-wrap gap-2">
@@ -305,7 +348,7 @@ const MainAppContent: React.FC = () => {
                   <ArticleCard
                     key={article.id}
                     article={article}
-                    onSelect={setSelectedArticle}
+                    onSelect={handleSelectArticle}
                     onLikeChanged={handleLikeChanged}
                     onEdit={handleEditArticle}
                     onDelete={handleArticleDeleted}
@@ -323,7 +366,7 @@ const MainAppContent: React.FC = () => {
             <SearchSection
               articles={articles}
               categories={categories}
-              onSelectArticle={setSelectedArticle}
+              onSelectArticle={handleSelectArticle}
               onLikeChanged={handleLikeChanged}
               onEditArticle={handleEditArticle}
               onDeleteArticle={handleArticleDeleted}
@@ -353,7 +396,7 @@ const MainAppContent: React.FC = () => {
                 setViewingAuthorId(null);
                 setCurrentTab('feed');
               }}
-              onSelectArticle={setSelectedArticle}
+              onSelectArticle={handleSelectArticle}
               onLikeChanged={handleLikeChanged}
               onEditArticle={handleEditArticle}
               onDeleteArticle={handleArticleDeleted}
@@ -366,7 +409,7 @@ const MainAppContent: React.FC = () => {
         {currentTab === 'chatbot' && (
           <div className="animate-fade-in">
             <SmartBotView
-              onSelectArticle={setSelectedArticle}
+              onSelectArticle={handleSelectArticle}
               knowledgeArticles={articles}
               onArticleAdded={newArt => {
                 setArticles(prev => [newArt, ...prev]);
@@ -417,7 +460,7 @@ const MainAppContent: React.FC = () => {
       {/* Modals & Overlays */}
       <ArticleDetailModal
         article={selectedArticle}
-        onClose={() => setSelectedArticle(null)}
+        onClose={() => handleSelectArticle(null)}
         onLikeChanged={handleLikeChanged}
         onCommentAdded={handleCommentAdded}
         onEdit={handleEditArticle}
